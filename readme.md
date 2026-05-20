@@ -22,10 +22,27 @@ or
 
 `node check.js --csv-github-url https://github.com/OWNER/REPO/tree/main/csv`
 
-## If GitHub rate limit is hit (403)
-
-`GITHUB_TOKEN=YOUR_TOKEN node check.js`
-
 ## Help
 
 `node check.js --help`
+
+
+---
+
+## Authenticating with GitHub (for higher API limits)
+
+**Basic Auth + OAuth2Token**
+
+`curl -u <token>:x-oauth-basic https://api.github.com/user`
+
+**Set and Send OAuth2Token in Header**
+
+`curl -H "Authorization: token OAUTH-TOKEN" https://api.github.com`
+
+**Set and Send OAuth2Token as URL Parameter**
+
+`curl https://api.github.com/?access_token=OAUTH-TOKEN`
+
+** via GitHub CLI
+
+`GITHUB_TOKEN=YOUR_TOKEN node check.js`
