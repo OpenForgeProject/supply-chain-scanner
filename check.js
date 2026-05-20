@@ -214,6 +214,34 @@ function log(message, color = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
+async function runWithSpinner(label, task) {
+  if (!process.stdout.isTTY) {
+    return task();
+  }
+
+  const frames = ['|', '/', '-', '\\'];
+  let frameIndex = 0;
+
+  const draw = () => {
+    process.stdout.write(`\r${colors.cyan}${frames[frameIndex]} ${label}${colors.reset}`);
+    frameIndex = (frameIndex + 1) % frames.length;
+  };
+
+  draw();
+  const timer = setInterval(draw, 100);
+
+  try {
+    const result = await task();
+    clearInterval(timer);
+    process.stdout.write(`\r\x1b[2K${colors.green}✓ ${label}${colors.reset}\n`);
+    return result;
+  } catch (error) {
+    clearInterval(timer);
+    process.stdout.write('\r\x1b[2K');
+    throw error;
+  }
+}
+
 function parseCliArgs(argv) {
   const options = {
     scanPath: process.cwd(),
@@ -221,6 +249,7 @@ function parseCliArgs(argv) {
     help: false,
     csvGithubUrl: ''
   };
+  let hasExplicitScanPath = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -239,6 +268,7 @@ function parseCliArgs(argv) {
       const next = argv[i + 1];
       if (next && !next.startsWith('--')) {
         options.scanPath = path.resolve(next);
+        hasExplicitScanPath = true;
         i++;
       }
       continue;
@@ -250,6 +280,13 @@ function parseCliArgs(argv) {
         options.csvGithubUrl = next;
         i++;
       }
+      continue;
+    }
+
+    // Allow positional path: node check.js ../path -r
+    if (!arg.startsWith('-') && !hasExplicitScanPath) {
+      options.scanPath = path.resolve(arg);
+      hasExplicitScanPath = true;
     }
   }
 
@@ -257,7 +294,7 @@ function parseCliArgs(argv) {
 }
 
 function printHelp() {
-  console.log('Usage: node check.js [options]');
+  console.log('Usage: node check.js [scanPath] [options]');
   console.log('');
   console.log('Options:');
   console.log('  --scan-path <path>   Directory to scan for node_modules (default: current directory)');
@@ -267,9 +304,9 @@ function printHelp() {
   console.log('');
   console.log('Examples:');
   console.log('  node check.js');
-  console.log('  node check.js --scan-path . --recursive');
+  console.log('  node check.js ../path -r');
+  console.log('  node check.js --scan-path ../path/ -r');
   console.log('  node check.js --csv-github-url https://github.com/OWNER/REPO/tree/main/csv');
-  console.log('  GITHUB_TOKEN=YOUR_TOKEN node check.js --scan-path /path/to/projects --recursive');
 }
 
 function parseGithubFolderUrl(url) {
@@ -314,7 +351,7 @@ function getInstalledVersion(packageName, nodeModulesPath) {
   return null;
 }
 
-function findNodeModules(startPath, recursive) {
+async function findNodeModules(startPath, recursive) {
   const nodeModulesPaths = [];
 
   const directNodeModulesPath = path.join(startPath, 'node_modules');
@@ -326,7 +363,12 @@ function findNodeModules(startPath, recursive) {
     return nodeModulesPaths;
   }
 
-  function searchRecursively(currentPath) {
+  const queue = [startPath];
+  let visitedDirs = 0;
+
+  while (queue.length > 0) {
+    const currentPath = queue.shift();
+
     try {
       const items = fs.readdirSync(currentPath);
 
@@ -340,17 +382,22 @@ function findNodeModules(startPath, recursive) {
               nodeModulesPaths.push(fullPath);
             }
           } else if (!item.startsWith('.') && !item.includes('node_modules')) {
-            // Recursively search subdirectories, but skip hidden dirs and avoid infinite loops
-            searchRecursively(fullPath);
+            // Search subdirectories, but skip hidden dirs and avoid obvious loops.
+            queue.push(fullPath);
           }
         }
       }
     } catch (error) {
       // Ignore permission errors or other issues
     }
+
+    visitedDirs++;
+    // Yield periodically so the spinner can animate during deep scans.
+    if (visitedDirs % 25 === 0) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
   }
 
-  searchRecursively(startPath);
   return nodeModulesPaths;
 }
 
@@ -374,7 +421,7 @@ async function checkAffectedVersions() {
   }
 
   const source = (process.env.CSV_SOURCE || 'local').toLowerCase();
-  const affectedEntries = await resolveAffectedEntries();
+  const affectedEntries = await runWithSpinner('load CSV data', () => resolveAffectedEntries());
 
   if (affectedEntries.length === 0) {
     if (source === 'github') {
@@ -393,7 +440,10 @@ async function checkAffectedVersions() {
   log(`Scan path: ${cli.scanPath}`, 'blue');
   log(`Recursive scan: ${cli.recursive ? 'enabled' : 'disabled'}`, 'blue');
 
-  const nodeModulesPaths = findNodeModules(cli.scanPath, cli.recursive);
+  const nodeModulesPaths = await runWithSpinner(
+    'Search node_modules directories ...',
+    () => findNodeModules(cli.scanPath, cli.recursive)
+  );
 
   if (nodeModulesPaths.length === 0) {
     log('No node_modules directories found.', 'yellow');
@@ -404,45 +454,58 @@ async function checkAffectedVersions() {
   nodeModulesPaths.forEach(p => log(`  - ${p}`, 'blue'));
   log('', 'reset');
 
-  let vulnerablePackages = [];
-  let checkedPackages = [];
+  const { vulnerablePackages, checkedPackages } = await runWithSpinner('Vergleiche installierte Pakete', async () => {
+    const foundVulnerablePackages = [];
+    const foundCheckedPackages = [];
 
-  for (const { packageName, affectedVersion, sourceFile } of affectedEntries) {
-    let foundLocations = [];
-    let isVulnerable = false;
-    let vulnerableLocation = null;
+    for (let i = 0; i < affectedEntries.length; i++) {
+      const { packageName, affectedVersion, sourceFile } = affectedEntries[i];
+      let foundLocations = [];
+      let isVulnerable = false;
+      let vulnerableLocation = null;
 
-    for (const nodeModulesPath of nodeModulesPaths) {
-      const installedVersion = getInstalledVersion(packageName, nodeModulesPath);
+      for (const nodeModulesPath of nodeModulesPaths) {
+        const installedVersion = getInstalledVersion(packageName, nodeModulesPath);
 
-      if (installedVersion) {
-        foundLocations.push({
-          path: nodeModulesPath,
-          version: installedVersion
-        });
-
-        if (installedVersion === affectedVersion) {
-          isVulnerable = true;
-          vulnerableLocation = nodeModulesPath;
-          vulnerablePackages.push({
-            name: packageName,
-            version: installedVersion,
-            path: path.join(nodeModulesPath, packageName),
-            nodeModulesPath: nodeModulesPath
+        if (installedVersion) {
+          foundLocations.push({
+            path: nodeModulesPath,
+            version: installedVersion
           });
+
+          if (installedVersion === affectedVersion) {
+            isVulnerable = true;
+            vulnerableLocation = nodeModulesPath;
+            foundVulnerablePackages.push({
+              name: packageName,
+              version: installedVersion,
+              path: path.join(nodeModulesPath, packageName),
+              nodeModulesPath: nodeModulesPath
+            });
+          }
         }
+      }
+
+      foundCheckedPackages.push({
+        name: packageName,
+        affectedVersion,
+        sourceFile,
+        foundLocations,
+        isVulnerable,
+        vulnerableLocation
+      });
+
+      // Yield periodically so the spinner can update during larger scans.
+      if ((i + 1) % 25 === 0) {
+        await new Promise(resolve => setImmediate(resolve));
       }
     }
 
-    checkedPackages.push({
-      name: packageName,
-      affectedVersion,
-      sourceFile,
-      foundLocations,
-      isVulnerable,
-      vulnerableLocation
-    });
-  }
+    return {
+      vulnerablePackages: foundVulnerablePackages,
+      checkedPackages: foundCheckedPackages
+    };
+  });
 
   // Results
   log(`${colors.bold}Results:${colors.reset}`, 'cyan');
