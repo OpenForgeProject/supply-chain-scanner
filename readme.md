@@ -11,6 +11,8 @@ By default, this scanner loads affected package versions directly from the GitHu
 2. Run it in your target project
 
 `node check.js`
+or
+`node check.js -r`
 
 ## Recursively scan multiple projects
 
