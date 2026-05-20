@@ -426,7 +426,10 @@ async function checkAffectedVersions() {
   }
 
   const source = (process.env.CSV_SOURCE || (cli.csvGithubUrl ? 'github' : 'local')).toLowerCase();
-  const affectedEntries = await runWithSpinner('load list with affected packages via GitHub CSV data', () => resolveAffectedEntries(cli, source));
+  const sourceLabel = source === 'github'
+    ? 'Loading affected package list from GitHub CSV data...'
+    : 'Loading affected package list from local CSV data...';
+  const affectedEntries = await runWithSpinner(sourceLabel, () => resolveAffectedEntries(cli, source));
 
   if (affectedEntries.length === 0) {
     if (source === 'github') {
