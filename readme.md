@@ -41,18 +41,10 @@ or
 
 ## Authenticating with GitHub (for higher API limits)
 
-**Basic Auth + OAuth2Token**
+Use a bearer token in the Authorization header:
 
-`curl -u <token>:x-oauth-basic https://api.github.com/user`
+`curl -H "Authorization: Bearer YOUR_TOKEN" https://api.github.com/user`
 
-**Set and Send OAuth2Token in Header**
-
-`curl -H "Authorization: token OAUTH-TOKEN" https://api.github.com`
-
-**Set and Send OAuth2Token as URL Parameter**
-
-`curl https://api.github.com/?access_token=OAUTH-TOKEN`
-
-** via GitHub CLI
+Or run the scanner with `GITHUB_TOKEN`:
 
 `GITHUB_TOKEN=YOUR_TOKEN node check.js`
