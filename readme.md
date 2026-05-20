@@ -10,20 +10,20 @@ curl -L -o check.js https://raw.githubusercontent.com/OpenForgeProject/supply-ch
 
 2. Run it in your target project
 
-node check.js
+`node check.js`
 
 ## Recursively scan multiple projects
 
-node check.js --scan-path /path/to/projects --recursive
+`node check.js --scan-path /path/to/projects -r`
 
 ## Use a custom GitHub CSV source
 
-node check.js --csv-github-url https://github.com/OWNER/REPO/tree/main/csv
+`node check.js --csv-github-url https://github.com/OWNER/REPO/tree/main/csv`
 
 ## If GitHub rate limit is hit (403)
 
-GITHUB_TOKEN=YOUR_TOKEN node check.js
+`GITHUB_TOKEN=YOUR_TOKEN node check.js`
 
 ## Help
 
-node check.js --help
+`node check.js --help`
