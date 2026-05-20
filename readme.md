@@ -6,7 +6,7 @@ By default, this scanner loads affected package versions directly from the GitHu
 
 1. Download the script
 
-curl -L -o check.js https://raw.githubusercontent.com/OpenForgeProject/supply-chain-scanner/main/check.js
+`curl -L -o check.js https://raw.githubusercontent.com/OpenForgeProject/supply-chain-scanner/main/check.js`
 
 2. Run it in your target project
 
