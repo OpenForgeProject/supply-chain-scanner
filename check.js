@@ -361,6 +361,9 @@ async function checkAffectedVersions() {
     return;
   }
 
+  log('', 'reset');
+  log('Supply Chain Scanner - Powered by OpenForgeProject', 'cyan');
+  log('', 'reset');
   log(`${colors.bold}Checking for compromised packages...${colors.reset}`, 'cyan');
   log('', 'reset');
 
