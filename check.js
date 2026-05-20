@@ -230,7 +230,7 @@ function parseCliArgs(argv) {
       continue;
     }
 
-    if (arg === '--recursive') {
+    if (arg === '--recursive' || arg === '-r') {
       options.recursive = true;
       continue;
     }
@@ -261,7 +261,7 @@ function printHelp() {
   console.log('');
   console.log('Options:');
   console.log('  --scan-path <path>   Directory to scan for node_modules (default: current directory)');
-  console.log('  --recursive          Recursively search subdirectories for node_modules');
+  console.log('  --recursive, -r      Recursively search subdirectories for node_modules');
   console.log('  --csv-github-url <url>  GitHub folder URL for CSV source (e.g. .../tree/main/csv)');
   console.log('  -h, --help           Show this help');
   console.log('');
