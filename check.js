@@ -247,7 +247,8 @@ function parseCliArgs(argv) {
     scanPath: process.cwd(),
     recursive: false,
     help: false,
-    csvGithubUrl: ''
+    csvGithubUrl: '',
+    verbose: false
   };
   let hasExplicitScanPath = false;
 
@@ -261,6 +262,11 @@ function parseCliArgs(argv) {
 
     if (arg === '--recursive' || arg === '-r') {
       options.recursive = true;
+      continue;
+    }
+
+    if (arg === '--verbose' || arg === '-v') {
+      options.verbose = true;
       continue;
     }
 
@@ -299,6 +305,7 @@ function printHelp() {
   console.log('Options:');
   console.log('  --scan-path <path>   Directory to scan for node_modules (default: current directory)');
   console.log('  --recursive, -r      Recursively search subdirectories for node_modules');
+  console.log('  --verbose, -v        Shows also not installed packages in the overview');
   console.log('  --csv-github-url <url>  GitHub folder URL for CSV source (e.g. .../tree/main/csv)');
   console.log('  -h, --help           Show this help');
   console.log('');
@@ -421,7 +428,7 @@ async function checkAffectedVersions() {
   }
 
   const source = (process.env.CSV_SOURCE || 'local').toLowerCase();
-  const affectedEntries = await runWithSpinner('load CSV data', () => resolveAffectedEntries());
+  const affectedEntries = await runWithSpinner('load list with affected packages via GitHub CSV data', () => resolveAffectedEntries());
 
   if (affectedEntries.length === 0) {
     if (source === 'github') {
@@ -441,7 +448,7 @@ async function checkAffectedVersions() {
   log(`Recursive scan: ${cli.recursive ? 'enabled' : 'disabled'}`, 'blue');
 
   const nodeModulesPaths = await runWithSpinner(
-    'Search node_modules directories ...',
+    'Scan node_modules directories ...',
     () => findNodeModules(cli.scanPath, cli.recursive)
   );
 
@@ -508,6 +515,7 @@ async function checkAffectedVersions() {
   });
 
   // Results
+  log('', 'reset');
   log(`${colors.bold}Results:${colors.reset}`, 'cyan');
   log('', 'reset');
 
@@ -530,10 +538,13 @@ async function checkAffectedVersions() {
 
   log('', 'reset');
   log(`${colors.bold}Detailed Overview:${colors.reset}`, 'cyan');
+  log('', 'reset');
 
   checkedPackages.forEach(pkg => {
     if (pkg.foundLocations.length === 0) {
-      log(`○ ${pkg.name} - not installed`, 'green');
+      if (cli.verbose) {
+        log(`○ ${pkg.name} - not installed`, 'green');
+      }
     } else if (pkg.isVulnerable) {
       log(`❌ ${pkg.name} - COMPROMISED (v${pkg.affectedVersion}, source: ${pkg.sourceFile})`, 'red');
       log(`   Found in: ${pkg.vulnerableLocation}`, 'red');
@@ -547,8 +558,9 @@ async function checkAffectedVersions() {
 
   log('', 'reset');
   log(`Checked packages: ${checkedPackages.length}`, 'blue');
-  log(`Found packages: ${checkedPackages.filter(p => p.foundLocations.length > 0).length}`, 'blue');
+  log(`Found installed packages: ${checkedPackages.filter(p => p.foundLocations.length > 0).length}`, 'blue');
   log(`Compromised packages: ${vulnerablePackages.length}`, vulnerablePackages.length > 0 ? 'red' : 'green');
+  log('', 'reset');
 }
 
 // Run the check

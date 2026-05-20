@@ -26,6 +26,16 @@ or
 
 `node check.js --help`
 
+## Verbose output
+
+By default, only found packages are shown in the detailed overview, including compromised and safe installed versions.
+
+Use verbose mode to also list packages that are not installed:
+
+`node check.js --verbose`
+or
+`node check.js -r --verbose`
+
 
 ---
 
