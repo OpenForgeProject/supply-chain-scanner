@@ -14,9 +14,9 @@ By default, this scanner loads affected package versions directly from the GitHu
 or
 `node check.js -r`
 
-## Recursively scan multiple projects
+## Recursively scan multiple projects in a directory
 
-`node check.js --scan-path /path/to/projects -r`
+`node check.js /path/to/scan -r`
 
 ## Use a custom GitHub CSV source
 
