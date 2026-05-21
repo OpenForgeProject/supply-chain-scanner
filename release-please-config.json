@@ -6,7 +6,10 @@
   "include-v-in-tag": false,
   "include-component-in-tag": false,
   "extra-files": [
-    "check.js"
+    {
+      "type": "generic",
+      "path": "check.js"
+    }
   ],
   "packages": {
     ".": {
