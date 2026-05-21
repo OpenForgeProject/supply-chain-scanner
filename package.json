@@ -1,6 +1,6 @@
 {
   "name": "supply-chain-scanner",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "CLI scanner for compromised npm packages based on CSV advisories.",
   "bin": {
     "supply-chain-scanner": "./check.js"
