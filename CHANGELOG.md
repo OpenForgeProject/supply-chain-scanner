@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.3.0...v1.4.0) (2026-05-21)
+
+
+### Features
+
+* enhance CSV entry extraction and update README for clarity ([f59a207](https://github.com/OpenForgeProject/supply-chain-scanner/commit/f59a207f25b1ea5ba0b1759e1cf822c60d32cd19))
+
 ## [1.3.0](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.2.1...v1.3.0) (2026-05-21)
 
 
