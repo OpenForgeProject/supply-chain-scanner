@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.1.0...v1.1.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* remove unnecessary release-type configuration from release-please files ([a0374a6](https://github.com/OpenForgeProject/supply-chain-scanner/commit/a0374a609c4a5c5529d74ca1297fbbd1b4246e00))
+
 ## [1.1.0](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.0.0...v1.1.0) (2026-05-21)
 
 
