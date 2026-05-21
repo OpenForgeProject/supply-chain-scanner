@@ -1,0 +1,89 @@
+name: Validate CSV files
+
+on:
+  pull_request:
+    paths:
+      - 'csv/**/*.csv'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate CSV files
+        run: node - <<'EOF'
+const fs = require('fs');
+const path = require('path');
+
+function parseCsvLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+      continue;
+    }
+    if (char === ',' && !inQuotes) { values.push(current.trim()); current = ''; continue; }
+    current += char;
+  }
+  values.push(current.trim());
+  return values;
+}
+
+const csvDir = path.join(process.cwd(), 'csv');
+const files = fs.readdirSync(csvDir).filter(f => f.endsWith('.csv'));
+
+if (files.length === 0) {
+  console.log('No CSV files found in csv/ — skipping.');
+  process.exit(0);
+}
+
+let hasError = false;
+
+for (const file of files) {
+  const filePath = path.join(csvDir, file);
+  const content = fs.readFileSync(filePath, 'utf8');
+  const lines = content.split(/\r?\n/).filter(l => l.trim() !== '');
+
+  if (lines.length < 2) {
+    console.error(`::error file=csv/${file}::${file}: must have a header row and at least one data row (found ${lines.length} line(s)).`);
+    hasError = true;
+    continue;
+  }
+
+  const header = parseCsvLine(lines[0]).map(col => col.toLowerCase());
+  const nameIndex = header.indexOf('name');
+  const versionIndex = header.indexOf('version');
+
+  if (nameIndex === -1) {
+    console.error(`::error file=csv/${file}::${file}: missing required column "name" in header: ${lines[0]}`);
+    hasError = true;
+  }
+  if (versionIndex === -1) {
+    console.error(`::error file=csv/${file}::${file}: missing required column "version" in header: ${lines[0]}`);
+    hasError = true;
+  }
+  if (nameIndex === -1 || versionIndex === -1) continue;
+
+  let emptyRows = 0;
+  for (let i = 1; i < lines.length; i++) {
+    const row = parseCsvLine(lines[i]);
+    const name = (row[nameIndex] || '').trim();
+    const version = (row[versionIndex] || '').trim();
+    if (!name || !version) {
+      emptyRows++;
+      console.warn(`::warning file=csv/${file},line=${i + 1}::${file} line ${i + 1}: empty "name" or "version" — row will be skipped by check.js.`);
+    }
+  }
+
+  const dataRows = lines.length - 1;
+  console.log(`✅  ${file}: ${dataRows} data row(s), ${emptyRows} skipped.`);
+}
+
+if (hasError) process.exit(1);
+EOF
