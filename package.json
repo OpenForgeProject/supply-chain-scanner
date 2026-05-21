@@ -1,0 +1,13 @@
+{
+  "name": "supply-chain-scanner",
+  "version": "1.0.0",
+  "description": "CLI scanner for compromised npm packages based on CSV advisories.",
+  "bin": {
+    "supply-chain-scanner": "./check.js"
+  },
+  "main": "check.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14"
+  }
+}

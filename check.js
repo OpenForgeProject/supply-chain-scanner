@@ -137,7 +137,7 @@ async function loadAffectedVersionsFromGithubCsvFolder(config) {
       const parsed = extractAffectedEntriesFromCsvContent(content, sourceFile, seen);
       affectedEntries.push(...parsed);
     } catch (error) {
-      // Skip unreadable files, continue with remaining CSVs.
+      console.warn(`Warning: Failed to load CSV file "${file.name}" from GitHub: ${error.message}`);
     }
   }
 
@@ -172,9 +172,7 @@ function loadAffectedVersionsFromCsv(csvDirectory) {
   return affectedEntries;
 }
 
-async function resolveAffectedEntries() {
-  const cli = parseCliArgs(process.argv.slice(2));
-  const source = (process.env.CSV_SOURCE || (cli.csvGithubUrl ? 'github' : 'github')).toLowerCase();
+async function resolveAffectedEntries(cli, source) {
 
   if (source === 'github') {
     const githubUrl = cli.csvGithubUrl || process.env.GITHUB_CSV_URL || DEFAULT_GITHUB_CSV_URL;
@@ -427,8 +425,11 @@ async function checkAffectedVersions() {
     return;
   }
 
-  const source = (process.env.CSV_SOURCE || 'local').toLowerCase();
-  const affectedEntries = await runWithSpinner('load list with affected packages via GitHub CSV data', () => resolveAffectedEntries());
+  const source = (process.env.CSV_SOURCE || (cli.csvGithubUrl ? 'github' : 'local')).toLowerCase();
+  const sourceLabel = source === 'github'
+    ? 'Loading affected package list from GitHub CSV data...'
+    : 'Loading affected package list from local CSV data...';
+  const affectedEntries = await runWithSpinner(sourceLabel, () => resolveAffectedEntries(cli, source));
 
   if (affectedEntries.length === 0) {
     if (source === 'github') {
@@ -461,7 +462,7 @@ async function checkAffectedVersions() {
   nodeModulesPaths.forEach(p => log(`  - ${p}`, 'blue'));
   log('', 'reset');
 
-  const { vulnerablePackages, checkedPackages } = await runWithSpinner('Vergleiche installierte Pakete', async () => {
+  const { vulnerablePackages, checkedPackages } = await runWithSpinner('Comparing installed packages...', async () => {
     const foundVulnerablePackages = [];
     const foundCheckedPackages = [];
 
@@ -532,6 +533,7 @@ async function checkAffectedVersions() {
 
     log('These packages should be updated immediately!', 'red');
     log('Run "npm update" or "yarn upgrade".', 'yellow');
+    process.exitCode = 1;
   } else {
     log(`✅ No compromised packages found in the exact affected versions!`, 'green');
   }
