@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.1.1...v1.2.0) (2026-05-21)
+
+
+### Features
+
+* add workflow to update CSV index and generate index.json ([1d2a326](https://github.com/OpenForgeProject/supply-chain-scanner/commit/1d2a3268853d5f2374f0478e454d0694f73ba66a))
+
 ## [1.1.1](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.1.0...v1.1.1) (2026-05-21)
 
 
