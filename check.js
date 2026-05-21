@@ -142,33 +142,29 @@ async function loadAffectedVersionsFromGithubCsvFolder(config) {
   const repo = config.repo;
   const ref = config.ref;
   const folderPath = config.folderPath;
-  const token = process.env.GITHUB_TOKEN || '';
 
-  const listUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(folderPath)}?ref=${encodeURIComponent(ref)}`;
-  const listResponse = await httpsGet(listUrl, token);
-  const entries = JSON.parse(listResponse);
+  const rawBase = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${folderPath}`;
+  const indexUrl = `${rawBase}/index.json`;
+  const indexResponse = await httpsGet(indexUrl);
+  const fileNames = JSON.parse(indexResponse);
 
-  if (!Array.isArray(entries)) {
-    return [];
+  if (!Array.isArray(fileNames)) {
+    throw new Error(`index.json in ${owner}/${repo}/${folderPath}@${ref} is not a valid array`);
   }
 
-  const csvFiles = entries.filter(item => item.type === 'file' && item.name.toLowerCase().endsWith('.csv'));
+  const csvFileNames = fileNames.filter(name => typeof name === 'string' && name.toLowerCase().endsWith('.csv'));
   const affectedEntries = [];
   const seen = new Set();
 
-  for (const file of csvFiles) {
-    const downloadUrl = file.download_url;
-    if (!downloadUrl) {
-      continue;
-    }
-
+  for (const fileName of csvFileNames) {
+    const downloadUrl = `${rawBase}/${fileName}`;
     try {
-      const content = await httpsGet(downloadUrl, token);
-      const sourceFile = `${owner}/${repo}/${folderPath}/${file.name}@${ref}`;
+      const content = await httpsGet(downloadUrl);
+      const sourceFile = `${owner}/${repo}/${folderPath}/${fileName}@${ref}`;
       const parsed = extractAffectedEntriesFromCsvContent(content, sourceFile, seen);
       affectedEntries.push(...parsed);
     } catch (error) {
-      console.warn(`Warning: Failed to load CSV file "${file.name}" from GitHub: ${error.message}`);
+      console.warn(`Warning: Failed to load CSV file "${fileName}" from GitHub: ${error.message}`);
     }
   }
 
@@ -216,12 +212,7 @@ async function resolveAffectedEntries(cli, source) {
       folderPath: process.env.GITHUB_CSV_PATH || 'csv'
     };
 
-    try {
-      return await loadAffectedVersionsFromGithubCsvFolder(config);
-    } catch (error) {
-      console.error(`Failed to load CSV data from GitHub: ${error.message}`);
-      return [];
-    }
+    return await loadAffectedVersionsFromGithubCsvFolder(config);
   }
 
   return loadAffectedVersionsFromCsv(path.join(__dirname, 'csv'));
@@ -466,17 +457,27 @@ async function checkAffectedVersions() {
     return;
   }
 
-  const source = (process.env.CSV_SOURCE || (cli.csvGithubUrl ? 'github' : 'local')).toLowerCase();
+  const localCsvDir = path.join(__dirname, 'csv');
+  const hasLocalCsvFiles = fs.existsSync(localCsvDir) &&
+    fs.readdirSync(localCsvDir).some(f => f.toLowerCase().endsWith('.csv'));
+  const source = (process.env.CSV_SOURCE || (cli.csvGithubUrl ? 'github' : (hasLocalCsvFiles ? 'local' : 'github'))).toLowerCase();
   const sourceLabel = source === 'github'
     ? 'Loading affected package list from GitHub CSV data...'
     : 'Loading affected package list from local CSV data...';
-  const affectedEntries = await runWithSpinner(sourceLabel, () => resolveAffectedEntries(cli, source));
+  let affectedEntries;
+  try {
+    affectedEntries = await runWithSpinner(sourceLabel, () => resolveAffectedEntries(cli, source));
+  } catch (error) {
+    log(`Failed to load CSV data from GitHub: ${error.message}`, 'red');
+    log('Check that csv/index.json exists in the configured repository and branch.', 'yellow');
+    process.exitCode = 1;
+    return;
+  }
 
   if (affectedEntries.length === 0) {
     if (source === 'github') {
       log('No valid npm entries were loaded from the GitHub CSV source.', 'yellow');
-      log('Check GITHUB_CSV_OWNER, GITHUB_CSV_REPO, GITHUB_CSV_REF, and GITHUB_CSV_PATH.', 'yellow');
-      log('If you get a 403, set GITHUB_TOKEN to avoid API rate limits.', 'yellow');
+      log('Check that csv/index.json exists in the configured repository and branch.', 'yellow');
     } else {
       log('No valid npm entries were found in ./csv.', 'yellow');
       log('Add at least one CSV file with Name and Version columns in ./csv.', 'yellow');

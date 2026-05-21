@@ -1,0 +1,46 @@
+name: Update CSV Index
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'csv/**.csv'
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate csv/index.json
+        run: |
+          files=$(ls csv/*.csv 2>/dev/null | xargs -I{} basename {} | sort)
+          json="["
+          first=true
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            if $first; then
+              json="$json\"$file\""
+              first=false
+            else
+              json="$json, \"$file\""
+            fi
+          done <<< "$files"
+          json="$json]"
+          echo "$json" > csv/index.json
+          echo "Generated csv/index.json: $json"
+
+      - name: Commit updated index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add csv/index.json
+          if git diff --cached --quiet; then
+            echo "No changes to csv/index.json"
+          else
+            git commit -m "chore: update csv/index.json"
+            git push
+          fi
