@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.0.0...v1.1.0) (2026-05-21)
+
+
+### Features
+
+* add version check and update notification in the scanner ([b5e0f7b](https://github.com/OpenForgeProject/supply-chain-scanner/commit/b5e0f7b3b32921b9bf6f93eec9380bd5d9a677e8))
+
+
+### Bug Fixes
+
+* update extra-files configuration to include type for check.js ([38b83a1](https://github.com/OpenForgeProject/supply-chain-scanner/commit/38b83a1c3f597bbebe37d84e1d57b9a012886b9d))
+
 ## 1.0.0 (2026-05-21)
 
 
