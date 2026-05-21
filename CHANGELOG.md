@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.2.1...v1.3.0) (2026-05-21)
+
+
+### Features
+
+* update mini-shai-hulud-packages ([fff16c3](https://github.com/OpenForgeProject/supply-chain-scanner/commit/fff16c34b60539a3d21af2cae01f0613bd37630d))
+
 ## [1.2.1](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.2.0...v1.2.1) (2026-05-21)
 
 

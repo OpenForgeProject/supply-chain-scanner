@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 
-const SCANNER_VERSION = '1.2.1'; // x-release-please-version
+const SCANNER_VERSION = '1.3.0'; // x-release-please-version
 const DEFAULT_GITHUB_CSV_URL = 'https://github.com/OpenForgeProject/supply-chain-scanner/tree/main/csv';
 
 function parseCsvLine(line) {
