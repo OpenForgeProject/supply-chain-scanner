@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.2.0...v1.2.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* downgrade version to 1.1.0 in package.json and check.js ([efe235b](https://github.com/OpenForgeProject/supply-chain-scanner/commit/efe235bbc6379e5b79250ab0d0ab71d84d38d64d))
+* update scanner version to 1.2.0 in check.js and package.json ([0d6737c](https://github.com/OpenForgeProject/supply-chain-scanner/commit/0d6737cdd0b82782c98f5c0d01fdc1cf4a55353d))
+
 ## [1.2.0](https://github.com/OpenForgeProject/supply-chain-scanner/compare/v1.1.1...v1.2.0) (2026-05-21)
 
 
