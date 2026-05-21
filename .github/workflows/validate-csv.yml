@@ -1,6 +1,9 @@
 name: Validate CSV files
 
 on:
+  push:
+    paths:
+      - 'csv/**/*.csv'
   pull_request:
     paths:
       - 'csv/**/*.csv'
