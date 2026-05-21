@@ -3,7 +3,6 @@
   "pull-request-header": "📦 A new release is almost ready to be published!",
   "pull-request-footer": "If you have any questions about the release, please contact the maintainers.",
   "changelog-path": "CHANGELOG.md",
-  "include-v-in-tag": false,
   "include-component-in-tag": false,
   "extra-files": [
     {
