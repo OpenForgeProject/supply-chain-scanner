@@ -1,4 +1,4 @@
-# Supply Chain Scanner
+# Supply Chain Scanner for NPM Packages
 
 By default, this scanner loads affected package versions directly from the GitHub csv folder and then checks your node_modules.
 
@@ -8,15 +8,11 @@ By default, this scanner loads affected package versions directly from the GitHu
 
 `curl -L -o check.js https://raw.githubusercontent.com/OpenForgeProject/supply-chain-scanner/main/check.js`
 
-2. Run it in your target project
+2. Options to run it in your target project
 
-`node check.js`
-or
-`node check.js -r`
-
-## Recursively scan multiple projects in a directory
-
-`node check.js /path/to/scan -r`
+- `node check.js`
+- `node check.js -r`
+- `node check.js /path/to/scan -r`
 
 ## Use a custom GitHub CSV source
 

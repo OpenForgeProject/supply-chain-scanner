@@ -37,7 +37,7 @@ function parseCsvLine(line) {
   return values;
 }
 
-function extractAffectedEntriesFromCsvContent(content, sourceFile, seen) {
+function extractAffectedEntriesFromCsvContent(content, sourceFile, seen, skippedEcosystems) {
   const affectedEntries = [];
   const lines = content.split(/\r?\n/).filter(line => line.trim() !== '');
 
@@ -61,7 +61,14 @@ function extractAffectedEntriesFromCsvContent(content, sourceFile, seen) {
     const version = (row[versionIndex] || '').trim();
 
     // This scanner validates node_modules, so we only keep npm packages.
-    if (ecosystem !== 'npm' || !packageName || !version) {
+    if (ecosystem !== 'npm') {
+      if (packageName && version && skippedEcosystems) {
+        skippedEcosystems[ecosystem] = (skippedEcosystems[ecosystem] || 0) + 1;
+      }
+      continue;
+    }
+
+    if (!packageName || !version) {
       continue;
     }
 
@@ -81,7 +88,9 @@ function httpsGet(url, token) {
   return new Promise((resolve, reject) => {
     const headers = {
       'User-Agent': 'supply-chain-scanner',
-      'Accept': 'application/vnd.github+json'
+      'Accept': 'application/vnd.github+json',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
     };
 
     if (token) {
@@ -156,20 +165,21 @@ async function loadAffectedVersionsFromGithubCsvFolder(config) {
   const csvFileNames = fileNames.filter(name => typeof name === 'string' && name.toLowerCase().endsWith('.csv'));
   const affectedEntries = [];
   const seen = new Set();
+  const skippedEcosystems = {};
 
   for (const fileName of csvFileNames) {
     const downloadUrl = `${rawBase}/${fileName}`;
     try {
       const content = await httpsGet(downloadUrl);
       const sourceFile = `${owner}/${repo}/${folderPath}/${fileName}@${ref}`;
-      const parsed = extractAffectedEntriesFromCsvContent(content, sourceFile, seen);
+      const parsed = extractAffectedEntriesFromCsvContent(content, sourceFile, seen, skippedEcosystems);
       affectedEntries.push(...parsed);
     } catch (error) {
       console.warn(`Warning: Failed to load CSV file "${fileName}" from GitHub: ${error.message}`);
     }
   }
 
-  return affectedEntries;
+  return { affectedEntries, skippedEcosystems };
 }
 
 function loadAffectedVersionsFromCsv(csvDirectory) {
@@ -182,6 +192,7 @@ function loadAffectedVersionsFromCsv(csvDirectory) {
 
   const affectedEntries = [];
   const seen = new Set();
+  const skippedEcosystems = {};
 
   for (const fileName of csvFiles) {
     const filePath = path.join(csvDirectory, fileName);
@@ -193,11 +204,11 @@ function loadAffectedVersionsFromCsv(csvDirectory) {
       continue;
     }
 
-    const parsed = extractAffectedEntriesFromCsvContent(content, fileName, seen);
+    const parsed = extractAffectedEntriesFromCsvContent(content, fileName, seen, skippedEcosystems);
     affectedEntries.push(...parsed);
   }
 
-  return affectedEntries;
+  return { affectedEntries, skippedEcosystems };
 }
 
 async function resolveAffectedEntries(cli, source) {
@@ -466,8 +477,9 @@ async function checkAffectedVersions() {
     ? 'Loading affected package list from GitHub CSV data...'
     : 'Loading affected package list from local CSV data...';
   let affectedEntries;
+  let skippedEcosystems = {};
   try {
-    affectedEntries = await runWithSpinner(sourceLabel, () => resolveAffectedEntries(cli, source));
+    ({ affectedEntries, skippedEcosystems } = await runWithSpinner(sourceLabel, () => resolveAffectedEntries(cli, source)));
   } catch (error) {
     log(`Failed to load CSV data from GitHub: ${error.message}`, 'red');
     log('Check that csv/index.json exists in the configured repository and branch.', 'yellow');
@@ -486,7 +498,12 @@ async function checkAffectedVersions() {
     return;
   }
 
-  log(`Loaded affected package versions from CSV: ${affectedEntries.length}`, 'blue');
+  log(`Loaded affected package versions from CSV: ${affectedEntries.length} (npm only)`, 'blue');
+  const skippedTotal = Object.values(skippedEcosystems).reduce((a, b) => a + b, 0);
+  if (skippedTotal > 0) {
+    const detail = Object.entries(skippedEcosystems).map(([eco, n]) => `${eco}: ${n}`).join(', ');
+    log(`Skipped non-npm entries: ${skippedTotal} (${detail}) — this scanner only checks node_modules`, 'yellow');
+  }
   log(`Scan path: ${cli.scanPath}`, 'blue');
   log(`Recursive scan: ${cli.recursive ? 'enabled' : 'disabled'}`, 'blue');
   log('', 'reset');
@@ -601,7 +618,10 @@ async function checkAffectedVersions() {
   });
 
   log('', 'reset');
-  log(`Checked packages: ${checkedPackages.length}`, 'blue');
+  log(`Checked packages: ${checkedPackages.length} (npm only)`, 'blue');
+  if (skippedTotal > 0) {
+    log(`Skipped (non-npm): ${skippedTotal}`, 'yellow');
+  }
   log(`Found installed packages: ${checkedPackages.filter(p => p.foundLocations.length > 0).length}`, 'blue');
   log(`Compromised packages: ${vulnerablePackages.length}`, vulnerablePackages.length > 0 ? 'red' : 'green');
   log('', 'reset');
