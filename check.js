@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 
+const SCANNER_VERSION = '1.0.0'; // x-release-please-version
 const DEFAULT_GITHUB_CSV_URL = 'https://github.com/OpenForgeProject/supply-chain-scanner/tree/main/csv';
 
 function parseCsvLine(line) {
@@ -104,6 +105,36 @@ function httpsGet(url, token) {
       });
     }).on('error', reject);
   });
+}
+
+function compareVersions(a, b) {
+  const parse = v => v.replace(/^v/, '').split('.').map(Number);
+  const [aMaj, aMin, aPatch] = parse(a);
+  const [bMaj, bMin, bPatch] = parse(b);
+  if (aMaj !== bMaj) return aMaj - bMaj;
+  if (aMin !== bMin) return aMin - bMin;
+  return aPatch - bPatch;
+}
+
+async function checkForUpdate(localVersion) {
+  try {
+    const token = process.env.GITHUB_TOKEN || '';
+    const response = await httpsGet(
+      'https://api.github.com/repos/OpenForgeProject/supply-chain-scanner/releases/latest',
+      token
+    );
+    const release = JSON.parse(response);
+    const latestVersion = (release.tag_name || '').replace(/^v/, '');
+    if (!latestVersion) return;
+
+    if (compareVersions(latestVersion, localVersion) > 0) {
+      log(`💡 Update available: v${localVersion} → v${latestVersion}`, 'yellow');
+      log('   Run: npm install -g supply-chain-scanner', 'yellow');
+      log('', 'reset');
+    }
+  } catch {
+    // Silently skip update check on failure
+  }
 }
 
 async function loadAffectedVersionsFromGithubCsvFolder(config) {
@@ -413,11 +444,21 @@ async function checkAffectedVersions() {
     return;
   }
 
+  let localVersion = SCANNER_VERSION;
+  try {
+    const localPkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+    if (localPkg.version) localVersion = localPkg.version;
+  } catch {
+    // Running as standalone script (e.g. via curl) — fall back to embedded version
+  }
+
   log('', 'reset');
-  log('Supply Chain Scanner - Powered by OpenForgeProject', 'cyan');
+  log(`Supply Chain Scanner v${localVersion} - Powered by OpenForgeProject`, 'cyan');
   log('', 'reset');
   log(`${colors.bold}Checking for compromised packages...${colors.reset}`, 'cyan');
   log('', 'reset');
+
+  await checkForUpdate(localVersion);
 
   if (!fs.existsSync(cli.scanPath)) {
     log(`Scan path not found: ${cli.scanPath}`, 'red');
