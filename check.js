@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const https = require("https");
 
-const SCANNER_VERSION = '1.2.0'; // x-release-please-version
+const SCANNER_VERSION = '1.1.0'; // x-release-please-version
 const DEFAULT_GITHUB_CSV_URL = 'https://github.com/OpenForgeProject/supply-chain-scanner/tree/main/csv';
 
 function parseCsvLine(line) {
@@ -118,18 +118,19 @@ function compareVersions(a, b) {
 
 async function checkForUpdate(localVersion) {
   try {
-    const token = process.env.GITHUB_TOKEN || '';
     const response = await httpsGet(
-      'https://api.github.com/repos/OpenForgeProject/supply-chain-scanner/releases/latest',
-      token
+      'https://raw.githubusercontent.com/OpenForgeProject/supply-chain-scanner/main/package.json'
     );
-    const release = JSON.parse(response);
-    const latestVersion = (release.tag_name || '').replace(/^v/, '');
+    const pkg = JSON.parse(response);
+    const latestVersion = (pkg.version || '').replace(/^v/, '');
     if (!latestVersion) return;
 
     if (compareVersions(latestVersion, localVersion) > 0) {
       log(`💡 Update available: v${localVersion} → v${latestVersion}`, 'yellow');
-      log('   Run: npm install -g supply-chain-scanner', 'yellow');
+      log('   Please download the latest version from GitHub: https://github.com/OpenForgeProject/supply-chain-scanner', 'yellow');
+      log('', 'reset');
+    } else {
+      log(`✅ You are using the latest version (v${localVersion})`, 'green');
       log('', 'reset');
     }
   } catch {
@@ -446,10 +447,10 @@ async function checkAffectedVersions() {
   log('', 'reset');
   log(`Supply Chain Scanner v${localVersion} - Powered by OpenForgeProject`, 'cyan');
   log('', 'reset');
+  await checkForUpdate(localVersion);
+  log('', 'reset');
   log(`${colors.bold}Checking for compromised packages...${colors.reset}`, 'cyan');
   log('', 'reset');
-
-  await checkForUpdate(localVersion);
 
   if (!fs.existsSync(cli.scanPath)) {
     log(`Scan path not found: ${cli.scanPath}`, 'red');
@@ -473,7 +474,7 @@ async function checkAffectedVersions() {
     process.exitCode = 1;
     return;
   }
-
+  log('', 'reset');
   if (affectedEntries.length === 0) {
     if (source === 'github') {
       log('No valid npm entries were loaded from the GitHub CSV source.', 'yellow');
@@ -486,10 +487,9 @@ async function checkAffectedVersions() {
   }
 
   log(`Loaded affected package versions from CSV: ${affectedEntries.length}`, 'blue');
-
   log(`Scan path: ${cli.scanPath}`, 'blue');
   log(`Recursive scan: ${cli.recursive ? 'enabled' : 'disabled'}`, 'blue');
-
+  log('', 'reset');
   const nodeModulesPaths = await runWithSpinner(
     'Scan node_modules directories ...',
     () => findNodeModules(cli.scanPath, cli.recursive)
